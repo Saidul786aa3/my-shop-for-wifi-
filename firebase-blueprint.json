@@ -1,0 +1,470 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Shop owner profile and general store settings",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Unique Google user ID matching authentication UID"
+        },
+        "shopName": {
+          "type": "string",
+          "description": "Name of the retail store or business"
+        },
+        "currency": {
+          "type": "string",
+          "description": "Operating currency code, e.g. USD, EUR, BDT"
+        },
+        "ownerEmail": {
+          "type": "string",
+          "description": "Owner Google account email address"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp; clients must submit FieldValue.serverTimestamp()"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp; clients must submit FieldValue.serverTimestamp()"
+        }
+      },
+      "required": ["userId", "shopName", "createdAt", "updatedAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Store merchandise item with barcode and stock level",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Product display name"
+        },
+        "barcode": {
+          "type": "string",
+          "description": "UPC/EAN or custom alphanumeric barcode"
+        },
+        "category": {
+          "type": "string",
+          "description": "Item categorization, e.g. Groceries, Electronics"
+        },
+        "costPrice": {
+          "type": "number",
+          "description": "Supplier purchase price per unit"
+        },
+        "sellingPrice": {
+          "type": "number",
+          "description": "Customer retail price per unit"
+        },
+        "stockQuantity": {
+          "type": "integer",
+          "description": "Current on-hand inventory count"
+        },
+        "minStockAlert": {
+          "type": "integer",
+          "description": "Low-stock notification threshold"
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of measurement (pcs, kg, box, etc.)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp; clients must submit FieldValue.serverTimestamp()"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp; clients must submit FieldValue.serverTimestamp()"
+        }
+      },
+      "required": ["name", "barcode", "costPrice", "sellingPrice", "stockQuantity", "createdAt", "updatedAt"]
+    },
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "Audit ledger entry for changes in stock quantity",
+      "type": "object",
+      "properties": {
+        "productId": {
+          "type": "string",
+          "description": "ID of the affected product"
+        },
+        "productName": {
+          "type": "string",
+          "description": "Product name snapshot at the time of movement"
+        },
+        "movementType": {
+          "type": "string",
+          "enum": ["SALE", "PURCHASE", "ADJUSTMENT", "RETURN"],
+          "description": "Nature of the inventory modification"
+        },
+        "deltaQuantity": {
+          "type": "integer",
+          "description": "Quantity change (positive for additions, negative for reductions)"
+        },
+        "previousStock": {
+          "type": "integer",
+          "description": "Stock count prior to this movement"
+        },
+        "newStock": {
+          "type": "integer",
+          "description": "Stock count following this movement"
+        },
+        "referenceId": {
+          "type": "string",
+          "description": "Related saleId, purchaseId, or adjustment notes"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Explanation or cashier memo for the adjustment"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Movement timestamp; clients must submit FieldValue.serverTimestamp()"
+        }
+      },
+      "required": ["productId", "productName", "movementType", "deltaQuantity", "timestamp"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "POS checkout transaction and customer receipt",
+      "type": "object",
+      "properties": {
+        "transactionId": {
+          "type": "string",
+          "description": "Unique client-generated idempotent transaction identifier"
+        },
+        "customerName": {
+          "type": "string",
+          "description": "Optional customer name for receipt and account billing"
+        },
+        "customerPhone": {
+          "type": "string",
+          "description": "Optional contact number for receipt sharing"
+        },
+        "itemsJson": {
+          "type": "string",
+          "description": "JSON serialized array of line items with price and quantity"
+        },
+        "subtotal": {
+          "type": "number",
+          "description": "Total sum before discount and tax"
+        },
+        "discount": {
+          "type": "number",
+          "description": "Discount amount subtracted from subtotal"
+        },
+        "tax": {
+          "type": "number",
+          "description": "Tax added to transaction"
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Net payable amount"
+        },
+        "paidAmount": {
+          "type": "number",
+          "description": "Actual tender amount received"
+        },
+        "changeAmount": {
+          "type": "number",
+          "description": "Change returned to customer"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["CASH", "CARD", "MOBILE_PAYMENT", "STORE_CREDIT"],
+          "description": "Method of settlement"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Transaction timestamp; clients must submit FieldValue.serverTimestamp()"
+        }
+      },
+      "required": ["transactionId", "itemsJson", "subtotal", "totalAmount", "paymentMethod", "timestamp"]
+    },
+    "Purchase": {
+      "title": "Purchase",
+      "description": "Stock procurement order from a vendor or supplier",
+      "type": "object",
+      "properties": {
+        "supplierId": {
+          "type": "string",
+          "description": "ID of supplier or vendor"
+        },
+        "supplierName": {
+          "type": "string",
+          "description": "Name of supplier"
+        },
+        "invoiceNumber": {
+          "type": "string",
+          "description": "Supplier invoice or bill number"
+        },
+        "itemsJson": {
+          "type": "string",
+          "description": "JSON serialized list of received products"
+        },
+        "totalCost": {
+          "type": "number",
+          "description": "Total purchase cost"
+        },
+        "paidAmount": {
+          "type": "number",
+          "description": "Amount disbursed to supplier"
+        },
+        "paymentStatus": {
+          "type": "string",
+          "enum": ["PAID", "PARTIAL", "DUE"],
+          "description": "Supplier payment fulfillment status"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Purchase timestamp; clients must submit FieldValue.serverTimestamp()"
+        }
+      },
+      "required": ["supplierName", "itemsJson", "totalCost", "paymentStatus", "timestamp"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Client record with phone, credit balance, and history",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Customer full name"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Contact phone number"
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address"
+        },
+        "address": {
+          "type": "string",
+          "description": "Delivery address"
+        },
+        "outstandingBalance": {
+          "type": "number",
+          "description": "Store credit or due amount owed by customer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp; clients must submit FieldValue.serverTimestamp()"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp; clients must submit FieldValue.serverTimestamp()"
+        }
+      },
+      "required": ["name", "createdAt", "updatedAt"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Vendor record with contact details and payable balance",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Company or distributor name"
+        },
+        "contactPerson": {
+          "type": "string",
+          "description": "Representative name"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Vendor contact number"
+        },
+        "email": {
+          "type": "string",
+          "description": "Vendor email address"
+        },
+        "address": {
+          "type": "string",
+          "description": "Vendor physical warehouse address"
+        },
+        "outstandingBalance": {
+          "type": "number",
+          "description": "Amount owed to supplier by shop"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp; clients must submit FieldValue.serverTimestamp()"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp; clients must submit FieldValue.serverTimestamp()"
+        }
+      },
+      "required": ["name", "createdAt", "updatedAt"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Financial payment settlement for customer credit or supplier due",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["CUSTOMER_RECEIPT", "SUPPLIER_PAYOUT"],
+          "description": "Direction of settlement"
+        },
+        "partyId": {
+          "type": "string",
+          "description": "ID of customer or supplier"
+        },
+        "partyName": {
+          "type": "string",
+          "description": "Name of customer or supplier"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Settled amount"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["CASH", "BANK_TRANSFER", "CHEQUE", "MOBILE_PAYMENT"],
+          "description": "Payment instrument"
+        },
+        "note": {
+          "type": "string",
+          "description": "Reference note or check number"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Payment timestamp; clients must submit FieldValue.serverTimestamp()"
+        }
+      },
+      "required": ["type", "partyName", "amount", "paymentMethod", "timestamp"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Shop overhead and operational expenditure",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Expense label or reason"
+        },
+        "category": {
+          "type": "string",
+          "description": "Expense category (Rent, Utilities, Salary, Maintenance, Supplies, Other)"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Total expense money paid"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["CASH", "BANK_TRANSFER", "CARD", "MOBILE_PAYMENT"],
+          "description": "Method of expense payment"
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional notes or invoice tag"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Expense timestamp; clients must submit FieldValue.serverTimestamp()"
+        }
+      },
+      "required": ["title", "category", "amount", "paymentMethod", "timestamp"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Pre-aggregated daily or periodic business analytics snapshot",
+      "type": "object",
+      "properties": {
+        "reportDate": {
+          "type": "string",
+          "description": "ISO date YYYY-MM-DD"
+        },
+        "totalSales": {
+          "type": "number",
+          "description": "Total sales revenue for the day"
+        },
+        "totalCost": {
+          "type": "number",
+          "description": "Total cost of goods sold"
+        },
+        "grossProfit": {
+          "type": "number",
+          "description": "Gross profit generated"
+        },
+        "totalExpenses": {
+          "type": "number",
+          "description": "Total shop operational expenses"
+        },
+        "netProfit": {
+          "type": "number",
+          "description": "Net business profit"
+        },
+        "transactionCount": {
+          "type": "integer",
+          "description": "Count of successful sales receipts"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Report timestamp; clients must submit FieldValue.serverTimestamp()"
+        }
+      },
+      "required": ["reportDate", "totalSales", "grossProfit", "transactionCount", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Shop owner profile and store configuration"
+    },
+    "/users/{userId}/products/{productId}": {
+      "schema": "Product",
+      "description": "Store inventory catalog items"
+    },
+    "/users/{userId}/stock_movements/{movementId}": {
+      "schema": "StockMovement",
+      "description": "Stock audit ledger entries"
+    },
+    "/users/{userId}/sales/{saleId}": {
+      "schema": "Sale",
+      "description": "Sales transactions and receipts"
+    },
+    "/users/{userId}/purchases/{purchaseId}": {
+      "schema": "Purchase",
+      "description": "Supplier purchase orders and stock replenishment"
+    },
+    "/users/{userId}/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Customer accounts and store dues"
+    },
+    "/users/{userId}/suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "Supplier accounts and store payables"
+    },
+    "/users/{userId}/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Settlement ledger for receivables and payables"
+    },
+    "/users/{userId}/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Store operating expenditures"
+    },
+    "/users/{userId}/reports/{reportId}": {
+      "schema": "Report",
+      "description": "Daily and periodic summary performance snapshots"
+    }
+  }
+}

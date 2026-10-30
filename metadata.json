@@ -1,0 +1,6 @@
+{
+  "name": "My Shop",
+  "description": "Offline-first POS and shop management with Firebase Firestore cloud sync, barcode inventory, and reports",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

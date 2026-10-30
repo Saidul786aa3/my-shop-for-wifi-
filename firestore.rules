@@ -1,0 +1,262 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Default-Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global Hardened Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 3. Entity Validation Helpers
+    function isValidUser(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.shopName is string && data.shopName.size() > 0 && data.shopName.size() <= 100 &&
+             (!('currency' in data) || (data.currency is string && data.currency.size() <= 10)) &&
+             (!('ownerEmail' in data) || (data.ownerEmail is string && data.ownerEmail.size() <= 100));
+    }
+
+    function isValidProduct(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 150 &&
+             data.barcode is string && data.barcode.size() > 0 && data.barcode.size() <= 100 &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 50)) &&
+             (!('unit' in data) || (data.unit is string && data.unit.size() <= 20)) &&
+             data.costPrice is number && data.costPrice >= 0 &&
+             data.sellingPrice is number && data.sellingPrice >= 0 &&
+             data.stockQuantity is int &&
+             (!('minStockAlert' in data) || (data.minStockAlert is int && data.minStockAlert >= 0));
+    }
+
+    function isValidStockMovement(data) {
+      return data.productId is string && data.productId.size() > 0 && data.productId.size() <= 128 &&
+             data.productName is string && data.productName.size() > 0 && data.productName.size() <= 150 &&
+             data.movementType in ['SALE', 'PURCHASE', 'ADJUSTMENT', 'RETURN'] &&
+             data.deltaQuantity is int &&
+             (!('previousStock' in data) || data.previousStock is int) &&
+             (!('newStock' in data) || data.newStock is int) &&
+             (!('referenceId' in data) || (data.referenceId is string && data.referenceId.size() <= 128)) &&
+             (!('reason' in data) || (data.reason is string && data.reason.size() <= 300));
+    }
+
+    function isValidSale(data) {
+      return data.transactionId is string && data.transactionId.size() > 0 && data.transactionId.size() <= 128 &&
+             data.itemsJson is string && data.itemsJson.size() > 0 && data.itemsJson.size() <= 50000 &&
+             data.subtotal is number && data.subtotal >= 0 &&
+             (!('discount' in data) || (data.discount is number && data.discount >= 0)) &&
+             (!('tax' in data) || (data.tax is number && data.tax >= 0)) &&
+             data.totalAmount is number && data.totalAmount >= 0 &&
+             (!('paidAmount' in data) || (data.paidAmount is number && data.paidAmount >= 0)) &&
+             (!('changeAmount' in data) || (data.changeAmount is number && data.changeAmount >= 0)) &&
+             data.paymentMethod in ['CASH', 'CARD', 'MOBILE_PAYMENT', 'STORE_CREDIT'] &&
+             (!('customerName' in data) || (data.customerName is string && data.customerName.size() <= 100)) &&
+             (!('customerPhone' in data) || (data.customerPhone is string && data.customerPhone.size() <= 50));
+    }
+
+    function isValidPurchase(data) {
+      return data.supplierName is string && data.supplierName.size() > 0 && data.supplierName.size() <= 100 &&
+             (!('supplierId' in data) || (data.supplierId is string && data.supplierId.size() <= 128)) &&
+             (!('invoiceNumber' in data) || (data.invoiceNumber is string && data.invoiceNumber.size() <= 50)) &&
+             data.itemsJson is string && data.itemsJson.size() > 0 && data.itemsJson.size() <= 50000 &&
+             data.totalCost is number && data.totalCost >= 0 &&
+             (!('paidAmount' in data) || (data.paidAmount is number && data.paidAmount >= 0)) &&
+             data.paymentStatus in ['PAID', 'PARTIAL', 'DUE'];
+    }
+
+    function isValidCustomer(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 50)) &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 100)) &&
+             (!('address' in data) || (data.address is string && data.address.size() <= 250)) &&
+             (!('outstandingBalance' in data) || data.outstandingBalance is number);
+    }
+
+    function isValidSupplier(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             (!('contactPerson' in data) || (data.contactPerson is string && data.contactPerson.size() <= 100)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 50)) &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 100)) &&
+             (!('address' in data) || (data.address is string && data.address.size() <= 250)) &&
+             (!('outstandingBalance' in data) || data.outstandingBalance is number);
+    }
+
+    function isValidPayment(data) {
+      return data.type in ['CUSTOMER_RECEIPT', 'SUPPLIER_PAYOUT'] &&
+             data.partyName is string && data.partyName.size() > 0 && data.partyName.size() <= 100 &&
+             (!('partyId' in data) || (data.partyId is string && data.partyId.size() <= 128)) &&
+             data.amount is number && data.amount > 0 &&
+             data.paymentMethod in ['CASH', 'BANK_TRANSFER', 'CHEQUE', 'MOBILE_PAYMENT'] &&
+             (!('note' in data) || (data.note is string && data.note.size() <= 300));
+    }
+
+    function isValidExpense(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.category is string && data.category.size() > 0 && data.category.size() <= 50 &&
+             data.amount is number && data.amount > 0 &&
+             data.paymentMethod in ['CASH', 'BANK_TRANSFER', 'CARD', 'MOBILE_PAYMENT'] &&
+             (!('note' in data) || (data.note is string && data.note.size() <= 300));
+    }
+
+    function isValidReport(data) {
+      return data.reportDate is string && data.reportDate.size() >= 8 && data.reportDate.size() <= 12 &&
+             data.totalSales is number && data.totalSales >= 0 &&
+             (!('totalCost' in data) || (data.totalCost is number && data.totalCost >= 0)) &&
+             data.grossProfit is number &&
+             (!('totalExpenses' in data) || (data.totalExpenses is number && data.totalExpenses >= 0)) &&
+             (!('netProfit' in data) || data.netProfit is number) &&
+             data.transactionCount is int && data.transactionCount >= 0;
+    }
+
+    // 4. Shop User Root & Subcollections
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       isValidUser(incoming()) &&
+                       incoming().userId == userId &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().updatedAt <= request.time;
+      allow update: if isOwner(userId) &&
+                       isValidUser(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       (!('createdAt' in incoming()) || incoming().createdAt == existing().createdAt) &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().updatedAt <= request.time;
+      allow delete: if isOwner(userId);
+
+      // Subcollections scoped to authenticated shop owner
+      match /products/{productId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidProduct(incoming()) &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time;
+        allow update: if isOwner(userId) &&
+                         isValidProduct(incoming()) &&
+                         (!('createdAt' in incoming()) || incoming().createdAt == existing().createdAt) &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time;
+        allow delete: if isOwner(userId);
+      }
+
+      match /stock_movements/{movementId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidStockMovement(incoming()) &&
+                         incoming().timestamp is timestamp &&
+                         incoming().timestamp <= request.time;
+        allow update: if false; // Audit logs are immutable
+        allow delete: if isOwner(userId);
+      }
+
+      match /sales/{saleId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidSale(incoming()) &&
+                         incoming().timestamp is timestamp &&
+                         incoming().timestamp <= request.time;
+        allow update: if false; // Transaction sales are immutable
+        allow delete: if isOwner(userId);
+      }
+
+      match /purchases/{purchaseId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidPurchase(incoming()) &&
+                         incoming().timestamp is timestamp &&
+                         incoming().timestamp <= request.time;
+        allow update: if isOwner(userId) &&
+                         isValidPurchase(incoming()) &&
+                         (!('timestamp' in incoming()) || incoming().timestamp == existing().timestamp);
+        allow delete: if isOwner(userId);
+      }
+
+      match /customers/{customerId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidCustomer(incoming()) &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time;
+        allow update: if isOwner(userId) &&
+                         isValidCustomer(incoming()) &&
+                         (!('createdAt' in incoming()) || incoming().createdAt == existing().createdAt) &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time;
+        allow delete: if isOwner(userId);
+      }
+
+      match /suppliers/{supplierId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidSupplier(incoming()) &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time;
+        allow update: if isOwner(userId) &&
+                         isValidSupplier(incoming()) &&
+                         (!('createdAt' in incoming()) || incoming().createdAt == existing().createdAt) &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time;
+        allow delete: if isOwner(userId);
+      }
+
+      match /payments/{paymentId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidPayment(incoming()) &&
+                         incoming().timestamp is timestamp &&
+                         incoming().timestamp <= request.time;
+        allow update: if false; // Financial settlement logs are immutable
+        allow delete: if isOwner(userId);
+      }
+
+      match /expenses/{expenseId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidExpense(incoming()) &&
+                         incoming().timestamp is timestamp &&
+                         incoming().timestamp <= request.time;
+        allow update: if isOwner(userId) &&
+                         isValidExpense(incoming()) &&
+                         (!('timestamp' in incoming()) || incoming().timestamp == existing().timestamp);
+        allow delete: if isOwner(userId);
+      }
+
+      match /reports/{reportId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidReport(incoming()) &&
+                         incoming().timestamp is timestamp &&
+                         incoming().timestamp <= request.time;
+        allow update: if isOwner(userId) &&
+                         isValidReport(incoming()) &&
+                         (!('timestamp' in incoming()) || incoming().timestamp == existing().timestamp);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}
